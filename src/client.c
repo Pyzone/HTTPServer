@@ -16,7 +16,17 @@
 
 #define PORT "3490" // the port client will be connecting to 
 
+
+
 #define MAXDATASIZE 100 // max number of bytes we can get at once 
+
+
+
+#define HTTP_PORT "80"
+#define BUFFER_SIZE 4096
+
+int STILL_READING_HEADER = 1; 
+
 
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
@@ -27,6 +37,51 @@ void *get_in_addr(struct sockaddr *sa)
 
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
+
+/**
+ * After receive the data from server
+ * it writes to the output file.
+ * This function assumes that file_descriptor is already open and ready to write
+ * buffer is the data received, file_descriptor is the fd for the function write to
+ * btyes_in_buffer is number of bytes in data
+ * Returns: number of bytes written to the file
+ */
+int write_to_output_file(char * buffer, int file_descriptor, size_t bytes_in_buffer)
+{
+	size_t bytes_left = bytes_in_buffer; 
+	if (STILL_READING_HEADER) {
+		char * header_terminator = strstr(buffer, "\r\n\r\n");
+		if (header_terminator == NULL) return 0; //"\r\n\r\n" not found yet
+		else { // found "\r\n\r\n"
+			bytes_left = bytes_in_buffer - (size_t)(header_terminator - buffer) -  4;
+			STILL_READING_HEADER = !STILL_READING_HEADER; 
+			return write(file_descriptor, header_terminator+4, bytes_left);
+		} 
+	} else {
+		return write(file_descriptor, buffer, bytes_left);
+	}
+}
+
+/**
+ * use select() or poll() to check whether there is more data coming from the 
+ * server side
+ */
+int more_data_to_come()
+{
+
+}
+
+/**
+ * Given the argument passed into the main function
+ * generate the GET HTTP message 
+ * the get message will be put into get message
+ */
+void process_argument(int argc, char ** argv, char * get_message)
+{
+
+}
+
+
 
 int main(int argc, char *argv[])
 {
@@ -76,12 +131,23 @@ int main(int argc, char *argv[])
 			s, sizeof s);
 	printf("client: connecting to %s\n", s);
 
+	//send GET message
+
 	freeaddrinfo(servinfo); // all done with this structure
 
-	if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
-	    perror("recv");
-	    exit(1);
+	while(more_data_coming()) {
+		recv(); 
+		/*
+		if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
+		    perror("recv");
+		    exit(1);
+		}
+		*/
+		write_to_output_file();
+
 	}
+
+	
 
 	buf[numbytes] = '\0';
 
