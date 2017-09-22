@@ -14,6 +14,9 @@
 
 #include <arpa/inet.h>
 
+#include <sys/stat.h>    
+#include <fcntl.h>
+
 #define PORT "3490" // the port client will be connecting to 
 
 
@@ -63,15 +66,6 @@ int write_to_output_file(char * buffer, int file_descriptor, size_t bytes_in_buf
 }
 
 /**
- * use select() or poll() to check whether there is more data coming from the 
- * server side
- */
-int more_data_to_come()
-{
-
-}
-
-/**
  * Given the argument passed into the main function
  * generate the GET HTTP message 
  * the get message will be put into get message
@@ -81,16 +75,14 @@ void process_argument(int argc, char ** argv, char * get_message)
 
 }
 
-
-
 int main(int argc, char *argv[])
 {
-	int sockfd, numbytes;  
-	char buf[MAXDATASIZE];
+	int sockfd, outputfd, numbytes;  
+	char buf[BUFFER_SIZE];
 	struct addrinfo hints, *servinfo, *p;
 	int rv;
 	char s[INET6_ADDRSTRLEN];
-
+	
 	if (argc != 2) {
 	    fprintf(stderr,"usage: client hostname\n");
 	    exit(1);
@@ -131,28 +123,34 @@ int main(int argc, char *argv[])
 			s, sizeof s);
 	printf("client: connecting to %s\n", s);
 
+	//process argument to form GET message
+	process_argument(argc, argv, buf);
+
 	//send GET message
+	send(sockfd, buf, strlen(buf), 0);
 
 	freeaddrinfo(servinfo); // all done with this structure
 
-	while(more_data_coming()) {
-		recv(); 
-		/*
-		if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
-		    perror("recv");
-		    exit(1);
-		}
-		*/
-		write_to_output_file();
+	//Create output file. Clear it if it already exists.
+	if ((outputfd = open("output", O_WRONLY | O_CREAT | O_TRUNC, S_IWRITE)) == -1) {
+		perror("open file");
+		exit(1);
+	}
+	
+	//receive http message and write the object to file.
+	while( (numbytes = recv(sockfd, buf, BUFFER_SIZE, 0)) > 0 ) {
+
+		write_to_output_file(buf, outputfd, (size_t) numbytes);
 
 	}
 
+	if (numbytes == -1) {
+		perror("recv");
+		exit(1);
+	}
 	
-
-	buf[numbytes] = '\0';
-
-	printf("client: received '%s'\n",buf);
-
+	close(outputfd);
+	
 	close(sockfd);
 
 	return 0;
