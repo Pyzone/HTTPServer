@@ -29,7 +29,7 @@
 #define BUFFER_SIZE 4096
 
 int STILL_READING_HEADER = 1; 
-
+int FINISHED_READING = 0; 
 
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa)
@@ -51,18 +51,75 @@ void *get_in_addr(struct sockaddr *sa)
  */
 int write_to_output_file(char * buffer, int file_descriptor, size_t bytes_in_buffer)
 {
+	if (FINISHED_READING) return 0;
 	size_t bytes_left = bytes_in_buffer; 
+	char * start_position = buffer; 
+	char * header_terminator;
 	if (STILL_READING_HEADER) {
-		char * header_terminator = strstr(buffer, "\r\n\r\n");
+		header_terminator = strstr(buffer, "\r\n\r\n");
 		if (header_terminator == NULL) return 0; //"\r\n\r\n" not found yet
 		else { // found "\r\n\r\n"
 			bytes_left = bytes_in_buffer - (size_t)(header_terminator - buffer) -  4;
 			STILL_READING_HEADER = !STILL_READING_HEADER; 
-			return write(file_descriptor, header_terminator+4, bytes_left);
+			start_position = header_terminator + 4; 
 		} 
-	} else {
-		return write(file_descriptor, buffer, bytes_left);
+	} 
+
+	char * body_terminator = strstr(start_position, "\r\n\r\n");
+	if (body_terminator != NULL) {
+		bytes_left = (size_t) (body_terminator - start_position);
+		FINISHED_READING = 1; 
 	}
+
+	return write(file_descriptor, buffer, bytes_left);
+}
+
+int there_is_a_port(char * url)
+{	
+	char * colon = strstr(url+7, ":");
+	if (colon == NULL) return 0;
+	else return 1; 
+}
+
+int get_the_port_in_the_url(char * url_raw)
+{
+	if (! there_is_a_port(url_raw)) return 80;
+
+	char * url = url_raw + 7; 
+	size_t start = 0, end;
+	for (; start < strlen(url); start++){
+		if (url[start] == ':') break;
+	}
+	for (end = start; end < strlen(url); end++){
+		if (url[end] == '/') break; 
+	}
+	char port_str[8];
+	int i = 0; 
+	for (start += 1; start < end; start++){
+		port_str[i++] = url[start];
+	}
+	port_str[i] = 0;
+	return atoi(port_str); 
+}
+
+char * get_path_to_file_in_the_url(char * url_raw)
+{
+	char * url = url_raw + 7;
+	return strstr(url, "/");
+}
+
+int get_hostname(char * url_raw, char * hostname){
+	char * url = url_raw + 7;
+	size_t i = 0;
+	for (; i < strlen(url); i++){
+		if (url[i] == ':' || url[i] == '/') {
+			break;
+		} else {
+			hostname[i] = url[i];
+		}
+	}
+	hostname[i] = 0;
+	return 0;
 }
 
 /**
@@ -70,9 +127,15 @@ int write_to_output_file(char * buffer, int file_descriptor, size_t bytes_in_buf
  * generate the GET HTTP message 
  * the get message will be put into get message
  */
-void process_argument(int argc, char ** argv, char * get_message)
+int process_argument(int argc, char ** argv, char * get_message, char * port_str, char * hostname)
 {
-
+	if (argc != 2) return -1;
+	int port = get_the_port_in_the_url(argv[1]); 
+	char * path_to_file = get_path_to_file_in_the_url(argv[1]); 
+	get_hostname(argv[1], hostname);
+	sprintf(get_message, "GET %s HTTP/1.1\r\n\r\n", path_to_file); 
+	sprintf(port_str, "%d", port);
+	return 0;
 }
 
 int main(int argc, char *argv[])
