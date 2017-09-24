@@ -133,7 +133,7 @@ int process_argument(int argc, char ** argv, char * get_message, char * port_str
 	int port = get_the_port_in_the_url(argv[1]); 
 	char * path_to_file = get_path_to_file_in_the_url(argv[1]); 
 	get_hostname(argv[1], hostname);
-	sprintf(get_message, "GET %s HTTP/1.1\r\nHost: %s\r\n\r\n", path_to_file, hostname); 
+	sprintf(get_message, "GET %s HTTP/1.1\r\nHost: %s:%d\r\n\r\n", path_to_file, hostname, port); 
 	sprintf(port_str, "%d", port);
 	return 0;
 }
