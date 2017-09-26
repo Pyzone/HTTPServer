@@ -133,7 +133,7 @@ int process_argument(int argc, char ** argv, char * get_message, char * port_str
 	int port = get_the_port_in_the_url(argv[1]); 
 	char * path_to_file = get_path_to_file_in_the_url(argv[1]); 
 	get_hostname(argv[1], hostname);
-	sprintf(get_message, "GET %s HTTP/1.1\r\n\r\n", path_to_file); 
+	sprintf(get_message, "GET %s HTTP/1.1\r\nHost: %s:%d\r\n\r\n", path_to_file, hostname, port); 
 	sprintf(port_str, "%d", port);
 	return 0;
 }
@@ -141,9 +141,11 @@ int process_argument(int argc, char ** argv, char * get_message, char * port_str
 int main(int argc, char *argv[])
 {
 	int sockfd, outputfd, numbytes;  
-	char buf[BUFFER_SIZE];
+	char data_buf[BUFFER_SIZE];
+	char get_message[BUFFER_SIZE];
 	struct addrinfo hints, *servinfo, *p;
 	int rv;
+	char port[8], hostname[256];
 	char s[INET6_ADDRSTRLEN];
 	
 	if (argc != 2) {
@@ -151,11 +153,13 @@ int main(int argc, char *argv[])
 	    exit(1);
 	}
 
+	//process argument to form GET message
+	process_argument(argc, argv, get_message, port, hostname);
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 
-	if ((rv = getaddrinfo(argv[1], PORT, &hints, &servinfo)) != 0) {
+	if ((rv = getaddrinfo(hostname, port, &hints, &servinfo)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
 		return 1;
 	}
@@ -186,12 +190,8 @@ int main(int argc, char *argv[])
 			s, sizeof s);
 	printf("client: connecting to %s\n", s);
 
-	//process argument to form GET message
-	process_argument(argc, argv, buf);
-
 	//send GET message
-	send(sockfd, buf, strlen(buf), 0);
-
+	send(sockfd, get_message, strlen(get_message) + 1, 0);
 	freeaddrinfo(servinfo); // all done with this structure
 
 	//Create output file. Clear it if it already exists.
@@ -201,9 +201,9 @@ int main(int argc, char *argv[])
 	}
 	
 	//receive http message and write the object to file.
-	while( (numbytes = recv(sockfd, buf, BUFFER_SIZE, 0)) > 0 ) {
+	while( (numbytes = recv(sockfd, data_buf, BUFFER_SIZE, 0)) > 0 ) {
 
-		write_to_output_file(buf, outputfd, (size_t) numbytes);
+		write_to_output_file(data_buf, outputfd, (size_t)numbytes);
 
 	}
 

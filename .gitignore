@@ -3,3 +3,7 @@ client
 obj/client.o
 obj/server.o
 server
+index.html
+output
+output.html
+*.html
