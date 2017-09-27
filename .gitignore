@@ -8,3 +8,5 @@ output
 output.html
 *.html
 *.o
+http_client
+http_server
