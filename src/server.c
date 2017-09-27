@@ -115,6 +115,7 @@ int main(void)
 
 		if (!fork()) { // this is the child process
 			close(sockfd); // child doesn't need the listener
+
 			if (send(new_fd, "Hello, world!\r\n\r\nTHIS IS THE BODY....\n", strlen("Hello, world!\r\n\r\nTHIS IS THE BODY....\n"), 0) == -1)
 				perror("send");
 			if (send(new_fd, "THIS IS THE BODY....", strlen("THIS IS THE BODY...."), 0) == -1)

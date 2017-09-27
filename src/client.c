@@ -26,7 +26,7 @@
 
 
 #define HTTP_PORT "80"
-#define BUFFER_SIZE 4096
+#define BUFFER_SIZE 40960
 
 int STILL_READING_HEADER = 1; 
 int FINISHED_READING = 0; 
@@ -72,6 +72,7 @@ int write_to_output_file(char * buffer, int file_descriptor, size_t bytes_in_buf
 	}
 
 	return write(file_descriptor, buffer, bytes_left);
+	//write(file_descriptor, buffer, bytes_in_buffer);
 }
 
 int there_is_a_port(char * url)
@@ -133,7 +134,7 @@ int process_argument(int argc, char ** argv, char * get_message, char * port_str
 	int port = get_the_port_in_the_url(argv[1]); 
 	char * path_to_file = get_path_to_file_in_the_url(argv[1]); 
 	get_hostname(argv[1], hostname);
-	sprintf(get_message, "GET %s HTTP/1.1\r\nHost: %s:%d\r\n\r\n", path_to_file, hostname, port); 
+	sprintf(get_message, "GET %s HTTP/1.1\r\nUser-Agent: curl/7.29.0\r\nHost: %s:%d\r\nAccept: */*\r\n\r\n", path_to_file, hostname, port); 
 	sprintf(port_str, "%d", port);
 	return 0;
 }
@@ -190,6 +191,7 @@ int main(int argc, char *argv[])
 			s, sizeof s);
 	printf("client: connecting to %s\n", s);
 
+	puts(get_message);
 	//send GET message
 	send(sockfd, get_message, strlen(get_message) + 1, 0);
 	freeaddrinfo(servinfo); // all done with this structure
@@ -201,10 +203,11 @@ int main(int argc, char *argv[])
 	}
 	
 	//receive http message and write the object to file.
-	while( (numbytes = recv(sockfd, data_buf, BUFFER_SIZE, 0)) > 0 ) {
-
+	while( (numbytes = recv(sockfd, data_buf, BUFFER_SIZE - 1, 0)) > 0 ) {
+		data_buf[numbytes] = '\0';
 		write_to_output_file(data_buf, outputfd, (size_t)numbytes);
-
+		printf("bytes: %d, reading_header: %d, reading_body:%d \n", numbytes, STILL_READING_HEADER, FINISHED_READING);
+		//puts(data_buf);
 	}
 
 	if (numbytes == -1) {
