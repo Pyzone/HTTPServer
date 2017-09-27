@@ -45,7 +45,7 @@ void send_content(int client_socket, FILE * fp) // file is already opened;
 	rewind(fp); 
 	char * file_content_addr = mmap((void*)0, file_size, PROT_READ, MAP_SHARED, fileno(fp), 0);
 	send(client_socket, file_content_addr, file_size, 0); 
-	send(client_socket, "\r\n\r\n", 4, 0); 
+	//send(client_socket, "\r\n\r\n", 4, 0); 
 	return; 
 }
 
