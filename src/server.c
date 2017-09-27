@@ -18,6 +18,8 @@
 #define PORT "3490"  // the port users will be connecting to
 
 #define BACKLOG 10	 // how many pending connections queue will hold
+#define REQUEST_BUFFER_SIZE 4096
+#define PATH_BUFFER_SIZE 4096
 
 void sigchld_handler(int s)
 {
@@ -32,6 +34,52 @@ void *get_in_addr(struct sockaddr *sa)
 	}
 
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
+}
+
+
+void send_content(int client_socket, FILE * fp) // file is already opened; 
+{
+	fseek(fp, 0L, SEEK_END); 
+	long file_size = ftell(fp); 
+	rewind(fp); 
+	char * file_content_addr = mmap((void*)0, file_size, PROT_READ, MAP_SHARED, fileno(fp), 0);
+	send(client_socket, file_content_addr, file_size, 0); 
+	send(client_socket, "\r\n\r\n", 4, 0); 
+	return; 
+}
+
+void send_good_header(int client_socket)
+{
+	char * good_header = "HTTP/1.1 200 OK\r\n\r\n"; 
+	send(client_socket, good_header, strlen(good_header), 0); 
+}
+
+void send_bad_header(int client_socket) 
+{
+	char * bad_header = "HTTP/1.1 404 Not Found.\r\n\r\n";
+	send(client_socket, bad_header, strlen(bad_header), 0); 
+}
+
+void process_client_request(int socket, addr_info)
+{
+	char request_buffer[REQUEST_BUFFER_SIZE]; 
+	size_t bytes_read = recv(socket, request_buffer, REQUEST_BUFFER_SIZE-1, 0); //write to a buffer, null terminated
+	if (bytes_read >= REQUEST_BUFFER_SIZE) {
+		perror("request buffer overflow"); 
+		exit(-1);
+	}
+	request_buffer[bytes_read] = 0;
+	char path[PATH_BUFFER_SIZE]; 
+	parse_client_request(request_buffer, path); 
+	FILE * fp = fopen(path, "r");
+	if (fp != NULL) {
+		send_good_header(buffer_2); //null ternimated
+		send_content(socket, fp); // 
+		fclose(fp); 
+	} else {
+		send_bad_header(); 
+	}
+	return; 
 }
 
 int main(void)
@@ -114,12 +162,7 @@ int main(void)
 		printf("server: got connection from %s\n", s);
 
 		if (!fork()) { // this is the child process
-			close(sockfd); // child doesn't need the listener
-			if (send(new_fd, "Hello, world!\r\n\r\nTHIS IS THE BODY....\n", strlen("Hello, world!\r\n\r\nTHIS IS THE BODY....\n"), 0) == -1)
-				perror("send");
-			if (send(new_fd, "THIS IS THE BODY....", strlen("THIS IS THE BODY...."), 0) == -1)
-				perror("send");
-			close(new_fd);
+			process_client_request(new_fd, ); 
 			exit(0);
 		}
 		close(new_fd);  // parent doesn't need this
