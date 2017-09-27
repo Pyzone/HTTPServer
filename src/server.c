@@ -87,19 +87,19 @@ void process_client_request(int socket)
 	}
 	request_buffer[bytes_read] = 0;
 	char path[PATH_BUFFER_SIZE]; 
-	parse_client_request(request_buffer, path); 
+	parse_client_request(request_buffer, path);
 	FILE * fp = fopen(path, "r");
 	if (fp != NULL) {
-		send_good_header(buffer_2); //null ternimated
+		send_good_header(socket); //null ternimated
 		send_content(socket, fp); // 
 		fclose(fp); 
 	} else {
-		send_bad_header(); 
+		send_bad_header(socket);
 	}
 	return; 
 }
 
-int main(void)
+int main(int argc, char* argv[])
 {
 	int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
 	struct addrinfo hints, *servinfo, *p;
