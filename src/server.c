@@ -14,6 +14,7 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <sys/mman.h>
 
 #define PORT "3490"  // the port users will be connecting to
 
@@ -60,7 +61,23 @@ void send_bad_header(int client_socket)
 	send(client_socket, bad_header, strlen(bad_header), 0); 
 }
 
-void process_client_request(int socket, addr_info)
+void parse_client_request(char * client_request_buffer, char * path) {
+	char *start, *end;
+	if ((start = strstr(client_request_buffer, "GET ")) != NULL) {
+		start += 5;
+		if ((end = strstr(client_request_buffer, " HTTP/")) != NULL) {
+			for (char* p = start; p < end; p++) {
+				*path = *p;
+				path++;
+			}
+			*path = '\0';
+			return;
+		}
+	}
+	sprintf(path, "Bad Request!\n");
+}
+
+void process_client_request(int socket)
 {
 	char request_buffer[REQUEST_BUFFER_SIZE]; 
 	size_t bytes_read = recv(socket, request_buffer, REQUEST_BUFFER_SIZE-1, 0); //write to a buffer, null terminated
@@ -98,7 +115,7 @@ int main(void)
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE; // use my IP
 
-	if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
+	if ((rv = getaddrinfo(NULL, (argc==0)?"80":argv[1], &hints, &servinfo)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
 		return 1;
 	}
@@ -162,7 +179,7 @@ int main(void)
 		printf("server: got connection from %s\n", s);
 
 		if (!fork()) { // this is the child process
-			process_client_request(new_fd, ); 
+			process_client_request(new_fd); 
 			exit(0);
 		}
 		close(new_fd);  // parent doesn't need this

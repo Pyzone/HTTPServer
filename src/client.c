@@ -203,8 +203,8 @@ int main(int argc, char *argv[])
 	//receive http message and write the object to file.
 	while( (numbytes = recv(sockfd, data_buf, BUFFER_SIZE, 0)) > 0 ) {
 
-		write_to_output_file(data_buf, outputfd, (size_t)numbytes);
-
+		//write_to_output_file(data_buf, outputfd, (size_t)numbytes);
+		write(outputfd,data_buf,(size_t)numbytes);
 	}
 
 	if (numbytes == -1) {
