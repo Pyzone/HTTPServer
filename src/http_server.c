@@ -14,6 +14,7 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <sys/mman.h>
 
 #define PORT "3490"  // the port users will be connecting to
 
@@ -44,7 +45,7 @@ void send_content(int client_socket, FILE * fp) // file is already opened;
 	rewind(fp); 
 	char * file_content_addr = mmap((void*)0, file_size, PROT_READ, MAP_SHARED, fileno(fp), 0);
 	send(client_socket, file_content_addr, file_size, 0); 
-	send(client_socket, "\r\n\r\n", 4, 0); 
+	//send(client_socket, "\r\n\r\n", 4, 0); 
 	return; 
 }
 
@@ -60,7 +61,23 @@ void send_bad_header(int client_socket)
 	send(client_socket, bad_header, strlen(bad_header), 0); 
 }
 
-void process_client_request(int socket, addr_info)
+void parse_client_request(char * client_request_buffer, char * path) {
+	char *start, *end;
+	if ((start = strstr(client_request_buffer, "GET ")) != NULL) {
+		start += 5;
+		if ((end = strstr(client_request_buffer, " HTTP/")) != NULL) {
+			for (char* p = start; p < end; p++) {
+				*path = *p;
+				path++;
+			}
+			*path = '\0';
+			return;
+		}
+	}
+	sprintf(path, "Bad Request!\n");
+}
+
+void process_client_request(int socket)
 {
 	char request_buffer[REQUEST_BUFFER_SIZE]; 
 	size_t bytes_read = recv(socket, request_buffer, REQUEST_BUFFER_SIZE-1, 0); //write to a buffer, null terminated
@@ -70,19 +87,19 @@ void process_client_request(int socket, addr_info)
 	}
 	request_buffer[bytes_read] = 0;
 	char path[PATH_BUFFER_SIZE]; 
-	parse_client_request(request_buffer, path); 
+	parse_client_request(request_buffer, path);
 	FILE * fp = fopen(path, "r");
 	if (fp != NULL) {
-		send_good_header(buffer_2); //null ternimated
+		send_good_header(socket); //null ternimated
 		send_content(socket, fp); // 
 		fclose(fp); 
 	} else {
-		send_bad_header(); 
+		send_bad_header(socket);
 	}
 	return; 
 }
 
-int main(void)
+int main(int argc, char* argv[])
 {
 	int sockfd, new_fd;  // listen on sock_fd, new connection on new_fd
 	struct addrinfo hints, *servinfo, *p;
@@ -98,7 +115,7 @@ int main(void)
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE; // use my IP
 
-	if ((rv = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
+	if ((rv = getaddrinfo(NULL, (argc==0)?"80":argv[1], &hints, &servinfo)) != 0) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
 		return 1;
 	}
@@ -162,7 +179,7 @@ int main(void)
 		printf("server: got connection from %s\n", s);
 
 		if (!fork()) { // this is the child process
-			process_client_request(new_fd, ); 
+			process_client_request(new_fd); 
 			exit(0);
 		}
 		close(new_fd);  // parent doesn't need this

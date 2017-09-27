@@ -65,13 +65,7 @@ int write_to_output_file(char * buffer, int file_descriptor, size_t bytes_in_buf
 		} 
 	} 
 
-	char * body_terminator = strstr(start_position, "\r\n\r\n");
-	if (body_terminator != NULL) {
-		bytes_left = (size_t) (body_terminator - start_position);
-		FINISHED_READING = 1; 
-	}
-
-	return write(file_descriptor, buffer, bytes_left);
+	return write(file_descriptor, start_position, bytes_left);
 }
 
 int there_is_a_port(char * url)
@@ -191,6 +185,7 @@ int main(int argc, char *argv[])
 	printf("client: connecting to %s\n", s);
 
 	//send GET message
+	puts(get_message);
 	send(sockfd, get_message, strlen(get_message) + 1, 0);
 	freeaddrinfo(servinfo); // all done with this structure
 
@@ -202,9 +197,7 @@ int main(int argc, char *argv[])
 	
 	//receive http message and write the object to file.
 	while( (numbytes = recv(sockfd, data_buf, BUFFER_SIZE, 0)) > 0 ) {
-
 		write_to_output_file(data_buf, outputfd, (size_t)numbytes);
-
 	}
 
 	if (numbytes == -1) {

@@ -6,10 +6,8 @@ COMPILERFLAGS = -g -Wall -Wextra -Wno-sign-compare
 
 #The components of each program. When you create a src/foo.c source file, add obj/foo.o here, separated
 #by a space (e.g. SOMEOBJECTS = obj/foo.o obj/bar.o obj/baz.o).
-SERVEROBJECTS = obj/server.o
-CLIENTOBJECTS = obj/client.o
-TALKEROBJECTS = obj/talker.o
-LISTENEROBJECTS = obj/listener.o
+HTTPSERVEROBJECTS = obj/http_server.o
+HTTPCLIENTOBJECTS = obj/http_client.o
 
 
 #Every rule listed here as .PHONY is "phony": when you say you want that rule satisfied,
@@ -21,42 +19,35 @@ LISTENEROBJECTS = obj/listener.o
 
 #The first rule in the Makefile is the default (the one chosen by plain `make`).
 #Since 'all' is first in this file, both `make all` and `make` do the same thing.
-#(`make obj server client talker listener` would also have the same effect).
-all : obj server client talker listener
+#(`make obj http_server http_client talker listener` would also have the same effect).
+all : obj http_server http_client
 
-#$@: name of rule's target: server, client, talker, or listener, for the respective rules.
-#$^: the entire dependency string (after expansions); here, $(SERVEROBJECTS)
+#$@: name of rule's target: http_server, http_client, talker, or listener, for the respective rules.
+#$^: the entire dependency string (after expansions); here, $(http_serverOBJECTS)
 #CC is a built in variable for the default C compiler; it usually defaults to "gcc". (CXX is g++).
-server: $(SERVEROBJECTS)
+http_server: $(HTTPSERVEROBJECTS)
 	$(CC) $(COMPILERFLAGS) $^ -o $@ $(LINKLIBS)
 
 
 
 #So, how does all of this work? This rule is saying 
 #
-#"I am how you make the thing called client. If the thing called client is required, but doesn't 
+#"I am how you make the thing called http_client. If the thing called http_client is required, but doesn't 
 #exist / is out of date, then the way to make it is to run 
 #`$(CC) $(COMPILERFLAGS) $^ -o $@ $(LINKLIBS)`. 
-#But, you can't start doing that until you are sure all of my dependencies ($(CLIENTOBJECTS)) are up to date."
+#But, you can't start doing that until you are sure all of my dependencies ($(http_clientOBJECTS)) are up to date."
 #
-#In this case, CLIENTOBJECTS is just obj/client.o. So, if obj/client.o doesn't exist or is out of date, 
+#In this case, http_clientOBJECTS is just obj/http_client.o. So, if obj/http_client.o doesn't exist or is out of date, 
 #make will first look for a rule to build it. That rule is the 'obj/%.o' one, below; the % is a wildcard.
-client: $(CLIENTOBJECTS)
+http_client: $(HTTPCLIENTOBJECTS)
 	$(CC) $(COMPILERFLAGS) $^ -o $@ $(LINKLIBS)
 
 
-
-
-talker: $(TALKEROBJECTS)
-	$(CC) $(COMPILERFLAGS) $^ -o $@ $(LINKLIBS)
-
-listener: $(LISTENEROBJECTS)
-	$(CC) $(COMPILERFLAGS) $^ -o $@ $(LINKLIBS)
 
 
 #RM is a built-in variable that defaults to "rm -f".
 clean :
-	$(RM) obj/*.o server client talker listener
+	$(RM) obj/*.o http_server http_client
 
 #$<: the first dependency in the list; here, src/%.c. (Of course, we could also have used $^).
 #The % sign means "match one or more characters". You specify it in the target, and when a file
